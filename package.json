@@ -6,7 +6,10 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "sync:export": "node scripts/sync-data.js export",
+    "sync:import": "node scripts/sync-data.js import",
+    "sync:help": "node scripts/sync-data.js"
   },
   "dependencies": {
     "@auth0/auth0-react": "latest",

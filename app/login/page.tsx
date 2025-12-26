@@ -6,13 +6,13 @@ import { useAuth } from "@/components/admin/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, Info } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
   const { login } = useAuth()
-  const [username, setUsername] = useState(process.env.NEXT_PUBLIC_ADMIN_USERNAME || "")
-  const [password, setPassword] = useState(process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -46,21 +46,6 @@ export default function LoginPage() {
                 <p className="text-destructive">{error}</p>
               </div>
             )}
-
-            <div className="p-3 rounded border border-border bg-secondary/30 flex gap-2 text-xs">
-              <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <div className="text-muted-foreground">
-                <p className="font-semibold mb-1">Development Credentials</p>
-                <p>
-                  Username:{" "}
-                  <code className="bg-background px-1 py-0.5 rounded">{process.env.NEXT_PUBLIC_ADMIN_USERNAME}</code>
-                </p>
-                <p>
-                  Password:{" "}
-                  <code className="bg-background px-1 py-0.5 rounded">{process.env.NEXT_PUBLIC_ADMIN_PASSWORD}</code>
-                </p>
-              </div>
-            </div>
 
             <div>
               <label className="text-sm font-semibold text-foreground">Username</label>

@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { AlertCircle } from "lucide-react"
+import { getFaviconUrl, getFaviconUrlSync } from "@/lib/favicon"
+import { AlertCircle, Loader2 } from "lucide-react"
 
 interface EditOpportunityDialogProps {
   opportunity: any
@@ -20,6 +21,7 @@ export function EditOpportunityDialog({ opportunity, onClose, onSuccess }: EditO
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [logoUrl, setLogoUrl] = useState(opportunity.logoUrl)
+  const [isFetchingLogo, setIsFetchingLogo] = useState(false)
 
   const [formData, setFormData] = useState({
     title: opportunity.title,
@@ -35,6 +37,34 @@ export function EditOpportunityDialog({ opportunity, onClose, onSuccess }: EditO
     fundingTypes: opportunity.fundingTypes?.join(", ") || "",
     eligibility: opportunity.eligibility || "",
   })
+
+  // Auto-fetch favicon when applyUrl changes
+  useEffect(() => {
+    const fetchFavicon = async () => {
+      if (formData.applyUrl && formData.applyUrl.startsWith("http") && formData.applyUrl !== opportunity.applyUrl) {
+        setIsFetchingLogo(true)
+        try {
+          // Set immediate sync version for instant feedback
+          const syncUrl = getFaviconUrlSync(formData.applyUrl)
+          if (syncUrl) setLogoUrl(syncUrl)
+          
+          // Then fetch the actual favicon
+          const faviconUrl = await getFaviconUrl(formData.applyUrl)
+          if (faviconUrl) {
+            setLogoUrl(faviconUrl)
+          }
+        } catch (err) {
+          console.error("Failed to fetch favicon:", err)
+        } finally {
+          setIsFetchingLogo(false)
+        }
+      }
+    }
+
+    // Debounce the favicon fetch
+    const timeoutId = setTimeout(fetchFavicon, 500)
+    return () => clearTimeout(timeoutId)
+  }, [formData.applyUrl, opportunity.applyUrl])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -133,6 +163,39 @@ export function EditOpportunityDialog({ opportunity, onClose, onSuccess }: EditO
                 onChange={(e) => setFormData({ ...formData, applyUrl: e.target.value })}
                 className="mt-2 w-full px-3 py-2 border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-foreground">Logo (Auto-fetched from URL)</label>
+              <div className="mt-2 space-y-2">
+                {logoUrl && (
+                  <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-muted/30">
+                    <img 
+                      src={logoUrl} 
+                      alt="Favicon" 
+                      className="w-8 h-8 rounded"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground truncate">{logoUrl}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Automatically fetched from the application URL
+                      </p>
+                    </div>
+                    {isFetchingLogo && (
+                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                )}
+                {!logoUrl && formData.applyUrl && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Fetching favicon...</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>

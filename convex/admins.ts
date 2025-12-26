@@ -18,6 +18,8 @@ export const add = mutation({
   args: {
     email: v.string(),
     name: v.string(),
+    role: v.union(v.literal("editor"), v.literal("manager"), v.literal("admin")),
+    isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
     // TODO: Add auth verification here
@@ -28,15 +30,19 @@ export const add = mutation({
 
     if (existing) {
       // Reactivate if deactivated
-      await ctx.db.patch(existing._id, { isActive: true })
+      await ctx.db.patch(existing._id, { 
+        isActive: args.isActive,
+        role: args.role,
+      })
       return existing._id
     }
 
     const id = await ctx.db.insert("admins", {
       email: args.email,
       name: args.name,
+      role: args.role,
       createdAt: Date.now(),
-      isActive: true,
+      isActive: args.isActive,
     })
     return id
   },
@@ -52,12 +58,15 @@ export const list = query({
 
 // Deactivate admin
 export const deactivate = mutation({
-  args: { id: v.id("admins") },
+  args: { 
+    id: v.id("admins"),
+    isActive: v.boolean(),
+  },
   handler: async (ctx, args) => {
     // TODO: Add auth verification
     const existing = await ctx.db.get(args.id)
     if (!existing) throw new Error("Admin not found")
-    await ctx.db.patch(args.id, { isActive: false })
+    await ctx.db.patch(args.id, { isActive: args.isActive })
     return args.id
   },
 })

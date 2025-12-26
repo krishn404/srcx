@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import Image from "next/image"
@@ -47,33 +48,49 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
     <div className="space-y-6">
       {/* Search and Filters */}
       <div className="space-y-4">
-        <Input
-          type="search"
-          placeholder="Search opportunities, providers..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-10"
-        />
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Input
+            type="search"
+            placeholder="Search opportunities, providers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-10 focus:scale-[1.02] transition-transform duration-200"
+          />
+        </motion.div>
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant={selectedCategory === null ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(null)}
-            className="text-xs"
-          >
-            All
-          </Button>
-          {allCategories.map((category) => (
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
+              variant={selectedCategory === null ? "default" : "outline"}
               size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className="text-xs"
+              onClick={() => setSelectedCategory(null)}
+              className="text-xs cursor-pointer"
             >
-              {category}
+              All
             </Button>
+          </motion.div>
+          {allCategories.map((category, index) => (
+            <motion.div
+              key={category}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant={selectedCategory === category ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(category)}
+                className="text-xs cursor-pointer"
+              >
+                {category}
+              </Button>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -112,15 +129,25 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                   </td>
                 </tr>
               ) : (
-                filteredOpportunities.map((opportunity) => (
-                  <tr
-                    key={opportunity._id}
-                    className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
-                    onClick={() => onSelectOpportunity(opportunity)}
-                  >
+                <AnimatePresence mode="popLayout">
+                  {filteredOpportunities.map((opportunity, index) => (
+                    <motion.tr
+                      key={opportunity._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className="border-b border-border hover:bg-muted/30 cursor-pointer transition-all duration-200"
+                      onClick={() => onSelectOpportunity(opportunity)}
+                      whileHover={{ backgroundColor: "rgba(var(--muted), 0.3)", x: 2 }}
+                    >
                     {/* Logo */}
                     <td className="px-4 py-3">
-                      <div className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <motion.div
+                        whileHover={{ scale: 1.1, rotate: 2 }}
+                        transition={{ type: "spring", stiffness: 300 }}
+                        className="w-12 h-12 rounded bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      >
                         {opportunity.logoUrl ? (
                           <Image
                             src={opportunity.logoUrl || "/placeholder.svg"}
@@ -135,7 +162,7 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                         ) : (
                           <div className="w-full h-full bg-muted"></div>
                         )}
-                      </div>
+                      </motion.div>
                     </td>
 
                     {/* Title and Description */}
@@ -173,19 +200,26 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
 
                     {/* Apply Button */}
                     <td className="px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        className="text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          window.open(opportunity.applyUrl, "_blank")
-                        }}
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        Apply
-                      </Button>
+                        <Button
+                          size="sm"
+                          className="text-xs cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(opportunity.applyUrl, "_blank")
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      </motion.div>
                     </td>
-                  </tr>
-                ))
+                  </motion.tr>
+                  ))}
+                </AnimatePresence>
               )}
             </tbody>
           </table>

@@ -118,4 +118,29 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Pointer cursor for interactive elements */
+  button,
+  a,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  select,
+  label[for] {
+    cursor: pointer;
+  }
+  
+  /* Smooth transitions for interactive elements */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition: all 0.2s ease-in-out;
+  }
 }

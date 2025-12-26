@@ -2,6 +2,7 @@
 
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { useAuth } from "./auth-provider"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
@@ -14,17 +15,23 @@ interface DeleteConfirmDialogProps {
 }
 
 export function DeleteConfirmDialog({ opportunity, onConfirm, onCancel }: DeleteConfirmDialogProps) {
+  const { user } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const archiveMutation = useMutation(api.opportunities.archive)
 
   const handleConfirm = async () => {
+    if (!user) {
+      setError("Authentication required")
+      return
+    }
     setIsDeleting(true)
     setError(null)
     try {
       await archiveMutation({
         id: opportunity._id,
-        adminId: "current-user", // TODO: Get from auth context
+        adminId: user.username,
+        adminEmail: user.username,
       })
       onConfirm()
     } catch (err) {

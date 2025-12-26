@@ -105,6 +105,7 @@ export const create = mutation({
     regions: v.array(v.string()),
     fundingTypes: v.array(v.string()),
     eligibility: v.string(),
+    createdBy: v.string(),
   },
   handler: async (ctx, args) => {
     const now = Date.now()
@@ -113,7 +114,7 @@ export const create = mutation({
       deadline: args.deadline,
       createdAt: now,
       updatedAt: now,
-      createdBy: "system", // TODO: Replace with actual user ID from auth
+      createdBy: args.createdBy,
     })
     return id
   },
@@ -153,7 +154,11 @@ export const update = mutation({
 
 // Archive opportunity instead of hard delete
 export const archive = mutation({
-  args: { id: v.id("opportunities"), adminId: v.string() },
+  args: { 
+    id: v.id("opportunities"), 
+    adminId: v.string(),
+    adminEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const existing = await ctx.db.get(args.id)
     if (!existing) throw new Error("Opportunity not found")
@@ -168,7 +173,7 @@ export const archive = mutation({
     // Log the action
     await ctx.db.insert("auditLog", {
       adminId: args.adminId,
-      adminEmail: "admin@example.com",
+      adminEmail: args.adminEmail || args.adminId,
       action: "archived",
       resourceType: "opportunity",
       resourceId: args.id.toString(),
@@ -182,7 +187,11 @@ export const archive = mutation({
 
 // Unarchive opportunity
 export const unarchive = mutation({
-  args: { id: v.id("opportunities"), adminId: v.string() },
+  args: { 
+    id: v.id("opportunities"), 
+    adminId: v.string(),
+    adminEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const existing = await ctx.db.get(args.id)
     if (!existing) throw new Error("Opportunity not found")
@@ -196,7 +205,7 @@ export const unarchive = mutation({
 
     await ctx.db.insert("auditLog", {
       adminId: args.adminId,
-      adminEmail: "admin@example.com",
+      adminEmail: args.adminEmail || args.adminId,
       action: "unarchived",
       resourceType: "opportunity",
       resourceId: args.id.toString(),
@@ -213,6 +222,9 @@ export const duplicate = mutation({
   args: {
     id: v.id("opportunities"),
     adminId: v.string(),
+    adminEmail: v.optional(v.string()),
+    titleSuffix: v.string(),
+    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("archived")),
   },
   handler: async (ctx, args) => {
     const original = await ctx.db.get(args.id)
@@ -220,7 +232,7 @@ export const duplicate = mutation({
 
     const now = Date.now()
     const newId = await ctx.db.insert("opportunities", {
-      title: `${original.title} (Copy)`,
+      title: `${original.title}${args.titleSuffix}`,
       description: original.description,
       description_full: original.description_full,
       provider: original.provider,
@@ -229,7 +241,7 @@ export const duplicate = mutation({
       applicableGroups: original.applicableGroups,
       applyUrl: original.applyUrl,
       deadline: original.deadline,
-      status: "inactive",
+      status: args.status,
       regions: original.regions,
       fundingTypes: original.fundingTypes,
       eligibility: original.eligibility,
@@ -240,7 +252,7 @@ export const duplicate = mutation({
 
     await ctx.db.insert("auditLog", {
       adminId: args.adminId,
-      adminEmail: "admin@example.com",
+      adminEmail: args.adminEmail || args.adminId,
       action: "duplicated",
       resourceType: "opportunity",
       resourceId: newId.toString(),

@@ -1,8 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import { motion, AnimatePresence } from "framer-motion"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { useAuth } from "./auth-provider"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,6 +18,7 @@ interface OpportunitiesManagementProps {
 }
 
 export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementProps) {
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "archived">("all")
   const [editingOpportunity, setEditingOpportunity] = useState<any>(null)
@@ -32,10 +35,17 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
   const archiveMutation = useMutation(api.opportunities.archive)
 
   const handleDuplicate = async (opportunity: any) => {
+    if (!user) {
+      setError("Authentication required")
+      return
+    }
     try {
       await duplicateMutation({
         id: opportunity._id,
-        adminId: "current-user", // TODO: Get from auth context
+        adminId: user.username,
+        adminEmail: user.username,
+        status: "inactive",
+        titleSuffix: " (Copy)",
       })
       onRefresh()
     } catch (err) {
@@ -44,10 +54,15 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
   }
 
   const handleArchive = async (opportunity: any) => {
+    if (!user) {
+      setError("Authentication required")
+      return
+    }
     try {
       await archiveMutation({
         id: opportunity._id,
-        adminId: "current-user",
+        adminId: user.username,
+        adminEmail: user.username,
       })
       onRefresh()
     } catch (err) {
@@ -58,17 +73,30 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
   return (
     <div className="space-y-6">
       {/* Error Display */}
-      {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm text-destructive font-medium">{error}</p>
-          </div>
-          <button onClick={() => setError(null)} className="text-destructive/60 hover:text-destructive text-sm">
-            Dismiss
-          </button>
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="bg-destructive/10 border border-destructive/20 rounded-md p-4 flex gap-3"
+          >
+            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm text-destructive font-medium">{error}</p>
+            </div>
+            <motion.button
+              onClick={() => setError(null)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="text-destructive/60 hover:text-destructive text-sm cursor-pointer"
+            >
+              Dismiss
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search and Filters */}
       <div className="space-y-4">
@@ -83,16 +111,24 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {["all", "active", "inactive", "archived"].map((status) => (
-            <Button
+          {["all", "active", "inactive", "archived"].map((status, index) => (
+            <motion.div
               key={status}
-              variant={statusFilter === status ? "default" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter(status as typeof statusFilter)}
-              className="text-xs capitalize"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              {status}
-            </Button>
+              <Button
+                variant={statusFilter === status ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(status as typeof statusFilter)}
+                className="text-xs capitalize cursor-pointer"
+              >
+                {status}
+              </Button>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -135,8 +171,17 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
                   </td>
                 </tr>
               ) : (
-                opportunities.map((opportunity) => (
-                  <tr key={opportunity._id} className="border-b border-border hover:bg-muted/20 transition-colors">
+                <AnimatePresence mode="popLayout">
+                  {opportunities.map((opportunity, index) => (
+                    <motion.tr
+                      key={opportunity._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className="border-b border-border hover:bg-muted/20 transition-all duration-200 cursor-pointer"
+                      whileHover={{ backgroundColor: "rgba(var(--muted), 0.2)", x: 2 }}
+                    >
                     <td className="px-4 py-3">
                       <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden border border-border/50">
                         {opportunity.logoUrl ? (
@@ -198,46 +243,55 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
 
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditingOpportunity(opportunity)}
-                          className="text-xs gap-1"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDuplicate(opportunity)}
-                          className="text-xs gap-1"
-                          title="Duplicate"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleArchive(opportunity)}
-                          className="text-xs gap-1"
-                          title="Archive"
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(opportunity)}
-                          className="text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Delete"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </Button>
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingOpportunity(opportunity)}
+                            className="text-xs gap-1 cursor-pointer"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDuplicate(opportunity)}
+                            className="text-xs gap-1 cursor-pointer"
+                            title="Duplicate"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleArchive(opportunity)}
+                            className="text-xs gap-1 cursor-pointer"
+                            title="Archive"
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(opportunity)}
+                            className="text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                            title="Delete"
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </Button>
+                        </motion.div>
                       </div>
                     </td>
-                  </tr>
-                ))
+                  </motion.tr>
+                  ))}
+                </AnimatePresence>
               )}
             </tbody>
           </table>

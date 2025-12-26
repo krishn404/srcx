@@ -26,14 +26,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem("admin_token")
-      const storedUsername = localStorage.getItem("admin_username")
-
-      if (token && storedUsername) {
-        // TODO: Verify token with Convex backend
-        setUser({ username: storedUsername, name: storedUsername })
-        setIsAuthenticated(true)
-        setIsAdmin(true)
+      const response = await fetch("/api/auth/verify")
+      if (response.ok) {
+        const data = await response.json()
+        if (data.authenticated) {
+          const storedUsername = localStorage.getItem("admin_username")
+          if (storedUsername) {
+            setUser({ username: storedUsername, name: storedUsername })
+            setIsAuthenticated(true)
+            setIsAdmin(true)
+          }
+        }
       }
     } catch (error) {
       console.error("Auth check failed:", error)
@@ -43,31 +46,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const login = async (username: string, password: string) => {
-    const adminUsername = process.env.NEXT_PUBLIC_ADMIN_USERNAME
-    const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD
-
     if (!username || !password) {
       throw new Error("Username and password are required")
     }
 
-    if (username !== adminUsername || password !== adminPassword) {
-      throw new Error("Invalid credentials")
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password }),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || "Invalid credentials")
     }
 
-    localStorage.setItem("admin_token", "temp_token_" + Date.now())
-    localStorage.setItem("admin_username", username)
+    const data = await response.json()
+    localStorage.setItem("admin_username", data.username)
 
-    setUser({ username, name: username })
+    setUser({ username: data.username, name: data.username })
     setIsAuthenticated(true)
     setIsAdmin(true)
   }
 
   const logout = async () => {
-    localStorage.removeItem("admin_token")
-    localStorage.removeItem("admin_username")
-    setUser(null)
-    setIsAuthenticated(false)
-    setIsAdmin(false)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } catch (error) {
+      console.error("Logout error:", error)
+    } finally {
+      localStorage.removeItem("admin_username")
+      setUser(null)
+      setIsAuthenticated(false)
+      setIsAdmin(false)
+    }
   }
 
   return (
