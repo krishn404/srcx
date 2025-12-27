@@ -12,7 +12,7 @@ interface AddOpportunityDialogProps {
 export function AddOpportunityDialog({ isOpen, onClose, onSuccess }: AddOpportunityDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-serif">Create New Opportunity</DialogTitle>
         </DialogHeader>

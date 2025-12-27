@@ -44,6 +44,14 @@ export const list = query({
   },
 })
 
+// Count pending submissions
+export const countPending = query({
+  handler: async (ctx) => {
+    const submissions = await ctx.db.query("submissions").collect()
+    return submissions.filter((s) => s.status === "pending").length
+  },
+})
+
 // Update submission status
 export const updateStatus = mutation({
   args: {
@@ -56,5 +64,18 @@ export const updateStatus = mutation({
       reviewedAt: Date.now(),
     })
     return args.id
+  },
+})
+
+// Delete submission(s)
+export const deleteSubmissions = mutation({
+  args: {
+    ids: v.array(v.id("submissions")),
+  },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      await ctx.db.delete(id)
+    }
+    return args.ids.length
   },
 })

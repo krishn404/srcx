@@ -11,16 +11,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EditOpportunityDialog } from "./edit-opportunity-dialog"
 import { DeleteConfirmDialog } from "./delete-confirm-dialog"
-import { Pencil, Copy, Archive, MoreVertical, AlertCircle } from "lucide-react"
+import { Pencil, Copy, Archive, MoreVertical, AlertCircle, ArchiveRestore } from "lucide-react"
 
 interface OpportunitiesManagementProps {
   onRefresh: () => void
+  onStatusFilterChange?: (filter: "all" | "active" | "inactive" | "archived") => void
 }
 
-export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementProps) {
+export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: OpportunitiesManagementProps) {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "archived">("all")
+  
+  // Notify parent of status filter changes
+  const handleStatusFilterChange = (filter: typeof statusFilter) => {
+    setStatusFilter(filter)
+    if (onStatusFilterChange) {
+      onStatusFilterChange(filter)
+    }
+  }
   const [editingOpportunity, setEditingOpportunity] = useState<any>(null)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -33,6 +42,7 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
 
   const duplicateMutation = useMutation(api.opportunities.duplicate)
   const archiveMutation = useMutation(api.opportunities.archive)
+  const unarchiveMutation = useMutation(api.opportunities.unarchive)
 
   const handleDuplicate = async (opportunity: any) => {
     if (!user) {
@@ -67,6 +77,24 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
       onRefresh()
     } catch (err) {
       setError("Failed to archive opportunity")
+    }
+  }
+
+  const handleUnarchive = async (opportunity: any) => {
+    if (!user) {
+      setError("Authentication required")
+      return
+    }
+    try {
+      await unarchiveMutation({
+        id: opportunity._id,
+        adminId: user.username,
+        adminEmail: user.username,
+        status: "inactive",
+      })
+      onRefresh()
+    } catch (err) {
+      setError("Failed to unarchive opportunity")
     }
   }
 
@@ -123,7 +151,7 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
               <Button
                 variant={statusFilter === status ? "default" : "outline"}
                 size="sm"
-                onClick={() => setStatusFilter(status as typeof statusFilter)}
+                onClick={() => handleStatusFilterChange(status as typeof statusFilter)}
                 className="text-xs capitalize cursor-pointer"
               >
                 {status}
@@ -243,45 +271,61 @@ export function OpportunitiesManagement({ onRefresh }: OpportunitiesManagementPr
 
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingOpportunity(opportunity)}
-                            className="text-xs gap-1 cursor-pointer"
-                            title="Edit"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </Button>
-                        </motion.div>
-                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDuplicate(opportunity)}
-                            className="text-xs gap-1 cursor-pointer"
-                            title="Duplicate"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </Button>
-                        </motion.div>
-                        <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleArchive(opportunity)}
-                            className="text-xs gap-1 cursor-pointer"
-                            title="Archive"
-                          >
-                            <Archive className="w-3.5 h-3.5" />
-                          </Button>
-                        </motion.div>
+                        {opportunity.archivedAt ? (
+                          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleUnarchive(opportunity)}
+                              className="text-xs gap-1 cursor-pointer text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30"
+                              title="Unarchive"
+                            >
+                              <ArchiveRestore className="w-3.5 h-3.5" />
+                            </Button>
+                          </motion.div>
+                        ) : (
+                          <>
+                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingOpportunity(opportunity)}
+                                className="text-xs gap-1 cursor-pointer"
+                                title="Edit"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDuplicate(opportunity)}
+                                className="text-xs gap-1 cursor-pointer"
+                                title="Duplicate"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleArchive(opportunity)}
+                                className="text-xs gap-1 cursor-pointer"
+                                title="Archive"
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                              </Button>
+                            </motion.div>
+                          </>
+                        )}
                         <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setDeleteTarget(opportunity)}
-                            className="text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                            className="text-xs gap-1 text-destructive hover:text-destructive-foreground hover:bg-destructive/20 dark:hover:bg-destructive/30 cursor-pointer"
                             title="Delete"
                           >
                             <MoreVertical className="w-3.5 h-3.5" />

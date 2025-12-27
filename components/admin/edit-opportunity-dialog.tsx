@@ -99,7 +99,7 @@ export function EditOpportunityDialog({ opportunity, onClose, onSuccess }: EditO
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-serif">Edit Opportunity</DialogTitle>
         </DialogHeader>

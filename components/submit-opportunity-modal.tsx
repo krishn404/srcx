@@ -2,13 +2,14 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { X, CheckCircle2 } from "lucide-react"
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock"
 
 interface SubmitOpportunityModalProps {
   open: boolean
@@ -39,16 +40,7 @@ export function SubmitOpportunityModal({ open, onOpenChange }: SubmitOpportunity
   const [showSuccess, setShowSuccess] = useState(false)
 
   // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [open])
+  useBodyScrollLock(open)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -126,7 +118,7 @@ export function SubmitOpportunityModal({ open, onOpenChange }: SubmitOpportunity
             <motion.div
               layout
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-3xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden pointer-events-auto max-h-[90vh] flex flex-col"
+              className="w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-4xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden pointer-events-auto max-h-[90vh] flex flex-col"
             >
               {!showSuccess ? (
                 <>
@@ -235,13 +227,13 @@ export function SubmitOpportunityModal({ open, onOpenChange }: SubmitOpportunity
                         </div>
 
                         <div>
-                          <label className="text-sm font-medium text-foreground mb-2 block">Twitter / Linktree</label>
+                          <label className="text-sm font-medium text-foreground mb-2 block">Twitter / linkedin</label>
                           <Input
                             type="text"
                             name="userTwitter"
                             value={formData.userTwitter}
                             onChange={handleChange}
-                            placeholder="@username or linktree.com/..."
+                            placeholder="@username or linkedin.com/..."
                             className="bg-muted/50 border-muted focus:border-foreground focus:scale-[1.01] transition-transform"
                             disabled={isSubmitting}
                           />

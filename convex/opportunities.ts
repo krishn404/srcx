@@ -13,12 +13,18 @@ export const list = query({
 
     // Filter by status
     if (args.status && args.status !== "all") {
-      opportunities = opportunities.filter((opp) => opp.status === args.status)
-    }
-
-    // Filter out archived opportunities unless explicitly requested
-    if (!args.includeArchived) {
-      opportunities = opportunities.filter((opp) => !opp.archivedAt)
+      if (args.status === "archived") {
+        // For archived, filter by archivedAt instead of status
+        opportunities = opportunities.filter((opp) => !!opp.archivedAt)
+      } else {
+        // For active/inactive, filter by status and exclude archived
+        opportunities = opportunities.filter((opp) => opp.status === args.status && !opp.archivedAt)
+      }
+    } else {
+      // For "all", filter out archived opportunities unless explicitly requested
+      if (!args.includeArchived) {
+        opportunities = opportunities.filter((opp) => !opp.archivedAt)
+      }
     }
 
     // Filter by search query
@@ -167,6 +173,7 @@ export const archive = mutation({
     await ctx.db.patch(args.id, {
       archivedAt: now,
       archivedBy: args.adminId,
+      status: "archived",
       updatedAt: now,
     })
 
@@ -191,6 +198,7 @@ export const unarchive = mutation({
     id: v.id("opportunities"), 
     adminId: v.string(),
     adminEmail: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("active"), v.literal("inactive"))),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db.get(args.id)
@@ -200,6 +208,7 @@ export const unarchive = mutation({
     await ctx.db.patch(args.id, {
       archivedAt: undefined,
       archivedBy: undefined,
+      status: args.status || "inactive",
       updatedAt: now,
     })
 
@@ -291,6 +300,34 @@ export const updateStatus = mutation({
       status: args.status,
       updatedAt: Date.now(),
     })
+    return args.id
+  },
+})
+
+// Hard delete opportunity (permanently remove from database)
+export const hardDelete = mutation({
+  args: {
+    id: v.id("opportunities"),
+    adminId: v.string(),
+    adminEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.id)
+    if (!existing) throw new Error("Opportunity not found")
+
+    // Log the action before deletion
+    await ctx.db.insert("auditLog", {
+      adminId: args.adminId,
+      adminEmail: args.adminEmail || args.adminId,
+      action: "deleted",
+      resourceType: "opportunity",
+      resourceId: args.id.toString(),
+      changes: { deleted: true, title: existing.title, provider: existing.provider },
+      timestamp: Date.now(),
+    })
+
+    // Permanently delete the opportunity
+    await ctx.db.delete(args.id)
     return args.id
   },
 })
