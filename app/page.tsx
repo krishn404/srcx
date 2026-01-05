@@ -58,8 +58,12 @@ export default function HomePage() {
             </div>
             <button
               onClick={() => setSubmitModalOpen(true)}
-              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-1.5"
             >
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"
+                aria-hidden="true"
+              />
               Submit Opportunities
             </button>
           </div>

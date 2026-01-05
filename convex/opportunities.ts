@@ -2,7 +2,7 @@ import { mutation, query } from "./_generated/server"
 import { v } from "convex/values"
 
 // Predefined tags - must match client-side constants
-const PREDEFINED_TAGS = ["Bootcamp", "Grant", "Student Benefit", "AI", "Accelerator", "Other"] as const
+const PREDEFINED_TAGS = ["Bootcamp", "Grant", "Student Benefit", "AI", "Accelerator", "Startup Benefits", "Other"] as const
 
 // Normalize tags - filter out invalid tags and ensure uniqueness
 function normalizeTags(tags: string[]): string[] {
@@ -131,13 +131,32 @@ export const create = mutation({
     const now = Date.now()
     // Normalize category tags to only include predefined tags
     const normalizedTags = normalizeTags(args.categoryTags || [])
-    const id = await ctx.db.insert("opportunities", {
-      ...args,
+    
+    // Build the insert object, explicitly handling optional deadline
+    const insertData: any = {
+      title: args.title,
+      description: args.description,
+      description_full: args.description_full,
+      provider: args.provider,
+      logoUrl: args.logoUrl,
       categoryTags: normalizedTags,
+      applicableGroups: args.applicableGroups,
+      applyUrl: args.applyUrl,
+      status: args.status,
+      regions: args.regions,
+      fundingTypes: args.fundingTypes,
+      eligibility: args.eligibility,
       createdAt: now,
       updatedAt: now,
       createdBy: args.createdBy,
-    })
+    }
+    
+    // Only include deadline if it's provided (not undefined)
+    if (args.deadline !== undefined) {
+      insertData.deadline = args.deadline
+    }
+    
+    const id = await ctx.db.insert("opportunities", insertData)
     return id
   },
 })
@@ -170,6 +189,11 @@ export const update = mutation({
     const patchData: any = { ...updates, updatedAt: Date.now() }
     if (updates.categoryTags) {
       patchData.categoryTags = normalizeTags(updates.categoryTags)
+    }
+    
+    // Explicitly handle deadline - if undefined, set it to undefined to clear the field
+    if ("deadline" in updates) {
+      patchData.deadline = updates.deadline
     }
 
     await ctx.db.patch(id, patchData)

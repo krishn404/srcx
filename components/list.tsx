@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { PREDEFINED_TAGS, normalizeTags } from "@/lib/constants"
 import { getFaviconUrlWithFallback } from "@/lib/favicon"
 import { FileText, Search } from "lucide-react"
+import { DeadlineBadge } from "@/components/deadline-badge"
 
 interface OpportunitiesTableProps {
   onSelectOpportunity: (opportunity: Opportunity) => void
@@ -200,14 +201,19 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                         )}
                       </div>
                     </td>
-                    <td className="px-3 sm:px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {opportunity.deadline
-                        ? new Date(opportunity.deadline).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "Not sure"}
+                    <td className="px-3 sm:px-4 py-3">
+                      <div className="flex flex-col gap-1.5">
+                        {opportunity.deadline && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(opportunity.deadline).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </span>
+                        )}
+                        <DeadlineBadge deadline={opportunity.deadline} />
+                      </div>
                     </td>
                     <td className="px-3 sm:px-4 py-3 text-right">
                       <Button
@@ -302,15 +308,18 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                       )}
                     </div>
                     <div className="flex items-center justify-between mt-3">
-                      <span className="text-xs text-muted-foreground">
-                        {opportunity.deadline
-                          ? new Date(opportunity.deadline).toLocaleDateString("en-US", {
+                      <div className="flex flex-col gap-1.5">
+                        {opportunity.deadline && (
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(opportunity.deadline).toLocaleDateString("en-US", {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
-                            })
-                          : "Not sure"}
-                      </span>
+                            })}
+                          </span>
+                        )}
+                        <DeadlineBadge deadline={opportunity.deadline} />
+                      </div>
                       <Button
                         size="sm"
                         className="text-xs cursor-pointer"

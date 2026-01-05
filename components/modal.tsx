@@ -37,33 +37,51 @@ export function OpportunityModal({
     : null
 
   return (
-    <AnimatePresence initial={false}>
+    <AnimatePresence>
       {isOpen && (
-        <motion.div
-          key="opportunity-modal"
-          className="fixed inset-0 z-50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
+        <>
+          {/* Backdrop with blur */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             onClick={onClose}
+            className="fixed inset-0 bg-black/50 backdrop-blur-md z-40"
             aria-hidden="true"
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none">
-            <div
-              className="bg-background border border-border rounded-lg w-full max-w-[calc(100vw-1rem)] sm:max-w-2xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-lg pointer-events-auto"
+          <motion.div
+            key="opportunity-modal"
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+          >
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
               onClick={(e) => e.stopPropagation()}
+              className="bg-background border border-border rounded-2xl w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
             >
               {/* Header */}
-              <div className="sticky top-0 bg-background border-b border-border px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="flex items-center justify-between p-6 border-b border-border shrink-0"
+              >
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                   {opportunity.logoUrl && (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.2, type: "spring", damping: 15 }}
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-muted flex items-center justify-center shrink-0 overflow-hidden"
+                    >
                       <Image
                         src={opportunity.logoUrl}
                         alt={opportunity.provider}
@@ -76,38 +94,49 @@ export function OpportunityModal({
                           e.currentTarget.src = fallback
                         }}
                       />
-                    </div>
+                    </motion.div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h2 className="font-semibold truncate text-sm sm:text-base">
+                    <h2 className="font-serif text-xl sm:text-2xl font-light text-foreground truncate">
                       {opportunity.title}
                     </h2>
-                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">
                       {opportunity.provider}
                     </p>
                   </div>
                 </div>
-                <button
+                <motion.button
                   onClick={onClose}
-                  className="p-1 rounded-full hover:bg-muted"
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="p-1 hover:bg-muted rounded-lg transition-colors cursor-pointer"
                   aria-label="Close modal"
                 >
-                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
+                  <X className="w-5 h-5" />
+                </motion.button>
+              </motion.div>
 
               {/* Content */}
-              <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">
+              <div className="px-6 py-6 space-y-6 flex-1 overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <h3 className="font-semibold text-sm mb-3">
                     About this opportunity
                   </h3>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
                     {opportunity.description_full}
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
                   <div>
                     <p className="text-xs text-muted-foreground font-semibold mb-1">
                       Deadline
@@ -129,8 +158,8 @@ export function OpportunityModal({
                         </p>
                       </>
                     ) : (
-                      <p className="text-sm font-medium text-muted-foreground">
-                        Not sure
+                      <p className="text-sm font-medium">
+                        Rolling deadline
                       </p>
                     )}
                   </div>
@@ -145,51 +174,80 @@ export function OpportunityModal({
                       )}
                     </p>
                   </div>
-                </div>
+                </motion.div>
 
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
                   <p className="text-xs text-muted-foreground font-semibold mb-2">
                     Categories
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {normalizeTags(opportunity.categoryTags || []).map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
+                    {normalizeTags(opportunity.categoryTags || []).map((tag, index) => (
+                      <motion.div
+                        key={tag}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.35 + index * 0.05 }}
+                      >
+                        <Badge variant="secondary">
+                          {tag}
+                        </Badge>
+                      </motion.div>
                     ))}
                   </div>
-                </div>
+                </motion.div>
 
-                <div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                >
                   <p className="text-xs text-muted-foreground font-semibold mb-2">
                     For Whom
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {opportunity.applicableGroups.map((group) => (
-                      <Badge key={group} variant="outline">
-                        {group}
-                      </Badge>
+                    {opportunity.applicableGroups.map((group, index) => (
+                      <motion.div
+                        key={group}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.45 + index * 0.05 }}
+                      >
+                        <Badge variant="outline">
+                          {group}
+                        </Badge>
+                      </motion.div>
                     ))}
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="pt-4 border-t border-border">
-                  <Button
-                    onClick={() =>
-                      window.open(opportunity.applyUrl, "_blank")
-                    }
-                    className="w-full h-10"
-                  >
-                    Apply Now
-                  </Button>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="pt-4 border-t border-border shrink-0"
+                >
+                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <Button
+                      onClick={() =>
+                        window.open(opportunity.applyUrl, "_blank")
+                      }
+                      className="w-full h-10 cursor-pointer"
+                    >
+                      Apply Now
+                    </Button>
+                  </motion.div>
                   <p className="text-xs text-muted-foreground text-center mt-3">
                     You'll be redirected to the official application page
                   </p>
-                </div>
+                </motion.div>
               </div>
-            </div>
-          </div>
-        </motion.div>
+            </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   )
