@@ -57,19 +57,20 @@ export function MultiSelect({
     <div ref={dropdownRef} className={cn("relative", className)}>
       <div
         className={cn(
-          "min-h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
-          "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
-          "flex flex-wrap gap-1 items-center cursor-pointer transition-all duration-200",
-          "hover:border-ring/50",
-          isOpen && "ring-2 ring-ring ring-offset-2 border-ring"
+          "h-12 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm",
+          "flex items-center cursor-pointer transition-colors duration-200",
+          "hover:border-foreground/30 overflow-hidden",
+          "focus-within:outline-none focus-within:ring-2 focus-within:ring-ring/20 focus-within:ring-offset-0",
+          isOpen && "ring-2 ring-ring/20 ring-offset-0"
         )}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex-1 flex flex-wrap gap-1 items-center">
+        <div className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-hide min-w-0">
           {selected.length === 0 ? (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="text-muted-foreground whitespace-nowrap">{placeholder}</span>
           ) : (
-            selected.map((option) => (
+            <div className="flex items-center gap-1.5 flex-nowrap">
+            {selected.map((option) => (
               <motion.div
                 key={option}
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -79,7 +80,7 @@ export function MultiSelect({
               >
                 <Badge
                   variant="secondary"
-                  className="mr-1 text-xs"
+                  className="text-xs shrink-0"
                   onClick={(e) => removeOption(option, e)}
                 >
                   {option}
@@ -102,7 +103,8 @@ export function MultiSelect({
                   </button>
                 </Badge>
               </motion.div>
-            ))
+            ))}
+            </div>
           )}
         </div>
         <motion.div

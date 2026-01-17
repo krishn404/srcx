@@ -114,7 +114,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
@@ -136,12 +136,78 @@
     cursor: pointer;
   }
   
-  /* Smooth transitions for interactive elements */
-  button,
-  a,
-  input,
+  /* Global form control styles - clean, modern interaction */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
   select,
   textarea {
-    transition: all 0.2s ease-in-out;
+    /* Remove all default browser outlines and double-stroke effects */
+    outline: none !important;
+    outline-offset: 0 !important;
+    
+    /* Default state: one subtle 1px border, neutral color */
+    border: 1px solid var(--input);
+    border-radius: var(--radius);
+    box-shadow: none !important;
+    
+    /* Smooth transitions for border color and box-shadow */
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    
+    /* Hover: slightly darker border only (no glow, no shadow) */
+    &:hover:not(:disabled) {
+      border-color: oklch(from var(--foreground) calc(l * 0.7) c h);
+    }
+    
+    /* Focus-visible: single soft outer ring + slightly stronger border color */
+    &:focus-visible {
+      border-color: oklch(from var(--foreground) calc(l * 0.5) c h);
+      box-shadow: 0 0 0 2px oklch(from var(--ring) l c h / 0.2);
+      outline: none !important;
+    }
+    
+    /* Active state: NO extra borders or shadows (no "pressed" look) */
+    &:active:not(:disabled) {
+      border-color: oklch(from var(--foreground) calc(l * 0.6) c h);
+      box-shadow: 0 0 0 2px oklch(from var(--ring) l c h / 0.15);
+    }
+    
+    /* Disabled state */
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+  
+  /* Button styles - same treatment */
+  button:not([type="submit"]):not([type="button"]):not([type="reset"]):not([class*="btn"]):not([class*="button"]) {
+    outline: none !important;
+    outline-offset: 0 !important;
+    
+    &:focus-visible {
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 20%, transparent);
+      outline: none !important;
+    }
+  }
+  
+  /* Ensure dropdown triggers match exactly */
+  [role="combobox"],
+  [data-radix-select-trigger],
+  [data-radix-combobox-trigger] {
+    outline: none !important;
+    outline-offset: 0 !important;
+    
+    &:focus-visible {
+      border-color: color-mix(in srgb, var(--foreground) 50%, transparent) !important;
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 20%, transparent) !important;
+      outline: none !important;
+    }
+    
+    &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--foreground) 30%, transparent) !important;
+    }
+  }
+  
+  /* Prevent outline inside + ring outside stacking globally */
+  *:focus-visible {
+    outline: none !important;
   }
 }

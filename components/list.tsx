@@ -118,47 +118,50 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
     <div className="space-y-6 sm:space-y-8">
       {/* Search and Filters */}
       <motion.div 
-        className="flex flex-col gap-4"
+        className="flex flex-col sm:flex-row gap-3 items-stretch"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Search input - primary, takes full width */}
+        {/* Search input - primary, takes remaining width */}
         <div className="flex-1">
           <Input
             type="search"
             placeholder="Search opportunities, providers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 w-full text-base border-2 focus:border-primary/50 transition-colors shadow-sm"
+            className="h-12 w-full text-base"
           />
         </div>
 
-        {/* Filters and Sort - side by side */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          {/* Category filter - MultiSelect */}
-          <MultiSelect
-            options={allCategories}
-            selected={selectedCategories}
-            onChange={setSelectedCategories}
-            placeholder="Filter by category..."
-            className="flex-1 sm:min-w-[200px]"
-          />
-          
-          {/* Sort dropdown */}
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-            <SelectTrigger className="h-12 w-full sm:w-[200px] text-base">
-              <SelectValue placeholder="Sort by..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (Manual Order)</SelectItem>
-              <SelectItem value="recent">Recently Added</SelectItem>
-              <SelectItem value="updated">Recently Updated</SelectItem>
-              <SelectItem value="ongoing">Ongoing</SelectItem>
-              <SelectItem value="deadline">Near Deadline</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Category filter - MultiSelect */}
+        <MultiSelect
+          options={allCategories}
+          selected={selectedCategories}
+          onChange={setSelectedCategories}
+          placeholder="Categories"
+          className="w-full sm:w-[200px] shrink-0"
+        />
+        
+        {/* Sort dropdown */}
+        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+          <SelectTrigger className="h-12 w-full sm:w-[200px] text-base shrink-0">
+            <SelectValue placeholder="Sort">
+              {sortBy === "default" ? "Sort" : 
+               sortBy === "recent" ? "Recently Added" :
+               sortBy === "updated" ? "Recently Updated" :
+               sortBy === "ongoing" ? "Ongoing" :
+               sortBy === "deadline" ? "Near Deadline" : "Sort"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">Default</SelectItem>
+            <SelectItem value="recent">Recently Added</SelectItem>
+            <SelectItem value="updated">Recently Updated</SelectItem>
+            <SelectItem value="ongoing">Ongoing</SelectItem>
+            <SelectItem value="deadline">Near Deadline</SelectItem>
+          </SelectContent>
+        </Select>
       </motion.div>
 
       {/* Results Count */}
