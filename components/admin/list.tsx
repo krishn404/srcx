@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -9,11 +9,9 @@ import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { MultiSelect } from "@/components/ui/multiselect"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EditOpportunityDialog } from "./edit-dialog"
 import { DeleteConfirmDialog } from "./delete-dialog"
-import { Pencil, Copy, Archive, MoreVertical, AlertCircle, ArchiveRestore, GripVertical, Search } from "lucide-react"
+import { Pencil, Copy, Archive, MoreVertical, AlertCircle, ArchiveRestore, GripVertical } from "lucide-react"
 import { getFaviconUrlWithFallback } from "@/lib/favicon"
 import {
   DndContext,
@@ -265,36 +263,16 @@ function SortableRow({
   )
 }
 
-type SortOption = "recent" | "updated" | "ongoing" | "deadline" | "default"
-
 export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: OpportunitiesManagementProps) {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilters, setStatusFilters] = useState<string[]>(["all"])
-  const [sortBy, setSortBy] = useState<SortOption>("default")
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "archived">("all")
   
   // Notify parent of status filter changes
-  const handleStatusFilterChange = (filters: string[]) => {
-    // If "all" is selected with other filters, remove "all"
-    if (filters.includes("all") && filters.length > 1) {
-      filters = filters.filter(f => f !== "all")
-    }
-    // If no filters selected, default to "all"
-    if (filters.length === 0) {
-      filters = ["all"]
-    }
-    
-    setStatusFilters(filters)
-    
-    // Notify parent for backward compatibility
+  const handleStatusFilterChange = (filter: typeof statusFilter) => {
+    setStatusFilter(filter)
     if (onStatusFilterChange) {
-      if (filters.includes("all")) {
-        onStatusFilterChange("all")
-      } else if (filters.length === 1) {
-        onStatusFilterChange(filters[0] as any)
-      } else {
-        onStatusFilterChange("all")
-      }
+      onStatusFilterChange(filter)
     }
   }
   const [editingOpportunity, setEditingOpportunity] = useState<any>(null)
@@ -304,89 +282,11 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
   const [overId, setOverId] = useState<string | null>(null)
   const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null)
 
-  // Determine query parameters - use "all" if multiple statuses or "all" is selected
-  const queryStatus = statusFilters.includes("all") || statusFilters.length > 1 
-    ? "all" 
-    : (statusFilters[0] as "active" | "inactive" | "archived" | "all")
-  
-  const allOpportunities = useQuery(api.opportunities.list, {
-    status: queryStatus,
+  const opportunities = useQuery(api.opportunities.list, {
+    status: statusFilter,
     search: searchQuery,
-    includeArchived: statusFilters.includes("archived") || statusFilters.includes("all"),
+    includeArchived: statusFilter === "archived",
   })
-
-  // Client-side filtering and sorting
-  const opportunities = useMemo(() => {
-    if (!allOpportunities) return undefined
-
-    let filtered = [...allOpportunities]
-
-    // Filter by status (client-side for multi-select)
-    if (!statusFilters.includes("all") && statusFilters.length > 0) {
-      filtered = filtered.filter(opp => {
-        const isArchived = !!opp.archivedAt
-        
-        // Check if matches any of the selected statuses
-        if (statusFilters.includes("archived") && isArchived) return true
-        if (statusFilters.includes("active") && opp.status === "active" && !isArchived) return true
-        if (statusFilters.includes("inactive") && opp.status === "inactive" && !isArchived) return true
-        
-        return false
-      })
-    }
-    // If "all" is selected, don't filter (show all based on query)
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "recent":
-          // Recently added - newest first
-          return b.createdAt - a.createdAt
-        
-        case "updated":
-          // Recently updated - most recent first
-          return b.updatedAt - a.updatedAt
-        
-        case "ongoing":
-          // Ongoing opportunities (active with no deadline or deadline in future)
-          const aOngoing = a.status === "active" && (!a.deadline || a.deadline > Date.now())
-          const bOngoing = b.status === "active" && (!b.deadline || b.deadline > Date.now())
-          if (aOngoing && !bOngoing) return -1
-          if (!aOngoing && bOngoing) return 1
-          // Within ongoing, sort by deadline (nearest first)
-          if (aOngoing && bOngoing) {
-            if (!a.deadline && !b.deadline) return 0
-            if (!a.deadline) return 1
-            if (!b.deadline) return -1
-            return a.deadline - b.deadline
-          }
-          // Otherwise maintain default order
-          return 0
-        
-        case "deadline":
-          // Near deadline - nearest first
-          if (!a.deadline && !b.deadline) return 0
-          if (!a.deadline) return 1
-          if (!b.deadline) return -1
-          return a.deadline - b.deadline
-        
-        case "default":
-        default:
-          // Default: sortOrder first, then deadline
-          if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
-            return a.sortOrder - b.sortOrder
-          }
-          if (a.sortOrder !== undefined) return -1
-          if (b.sortOrder !== undefined) return 1
-          if (!a.deadline && !b.deadline) return 0
-          if (!a.deadline) return 1
-          if (!b.deadline) return -1
-          return a.deadline - b.deadline
-      }
-    })
-
-    return filtered
-  }, [allOpportunities, statusFilters, sortBy])
 
   const duplicateMutation = useMutation(api.opportunities.duplicate)
   const archiveMutation = useMutation(api.opportunities.archive)
@@ -560,40 +460,36 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
 
       {/* Search and Filters */}
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              type="search"
-              placeholder="Search by title, provider, description..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 pl-10"
-            />
-          </div>
-          
-          <div className="flex gap-3">
-            <MultiSelect
-              options={["all", "active", "inactive", "archived"]}
-              selected={statusFilters}
-              onChange={handleStatusFilterChange}
-              placeholder="Filter by status..."
-              className="min-w-[180px]"
-            />
-            
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-              <SelectTrigger className="h-10 min-w-[200px]">
-                <SelectValue placeholder="Sort by..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Default (Manual Order)</SelectItem>
-                <SelectItem value="recent">Recently Added</SelectItem>
-                <SelectItem value="updated">Recently Updated</SelectItem>
-                <SelectItem value="ongoing">Ongoing</SelectItem>
-                <SelectItem value="deadline">Near Deadline</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="relative">
+          <Input
+            type="search"
+            placeholder="Search by title, provider, description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-10 pl-4"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {["all", "active", "inactive", "archived"].map((status, index) => (
+            <motion.div
+              key={status}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant={statusFilter === status ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilterChange(status as typeof statusFilter)}
+                className="text-xs capitalize cursor-pointer"
+              >
+                {status}
+              </Button>
+            </motion.div>
+          ))}
         </div>
       </div>
 

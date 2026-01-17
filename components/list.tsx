@@ -9,6 +9,8 @@ import type { Opportunity } from "@/types/opportunity"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { MultiSelect } from "@/components/ui/multiselect"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PREDEFINED_TAGS, type PredefinedTag, normalizeTags } from "@/lib/constants"
 import { getFaviconUrlWithFallback } from "@/lib/favicon"
 import { FileText, Search, ArrowUpRight } from "lucide-react"
@@ -18,30 +20,87 @@ interface OpportunitiesTableProps {
   onSelectOpportunity: (opportunity: Opportunity) => void
 }
 
+type SortOption = "recent" | "updated" | "ongoing" | "deadline" | "default"
+
 export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTableProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<PredefinedTag | null>(null)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<SortOption>("default")
 
   // Fetch opportunities from Convex
   const opportunities = useQuery(api.opportunities.list, {
     status: "active",
   })
 
-  const filteredOpportunities = useMemo(() => {
+  const filteredAndSortedOpportunities = useMemo(() => {
     if (!opportunities) return []
 
-    return opportunities.filter((opp) => {
+    // Filter by search and categories
+    let filtered = opportunities.filter((opp) => {
       const matchesSearch =
         opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opp.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opp.provider.toLowerCase().includes(searchQuery.toLowerCase())
 
       const normalizedTags = normalizeTags(opp.categoryTags || [])
-      const matchesCategory = !selectedCategory || normalizedTags.includes(selectedCategory)
+      const matchesCategory = 
+        selectedCategories.length === 0 || 
+        selectedCategories.some(cat => normalizedTags.includes(cat as PredefinedTag))
 
       return matchesSearch && matchesCategory
     })
-  }, [opportunities, searchQuery, selectedCategory])
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "recent":
+          // Recently added - newest first
+          return b.createdAt - a.createdAt
+        
+        case "updated":
+          // Recently updated - most recent first
+          return b.updatedAt - a.updatedAt
+        
+        case "ongoing":
+          // Ongoing opportunities (active with no deadline or deadline in future)
+          const aOngoing = a.status === "active" && (!a.deadline || a.deadline > Date.now())
+          const bOngoing = b.status === "active" && (!b.deadline || b.deadline > Date.now())
+          if (aOngoing && !bOngoing) return -1
+          if (!aOngoing && bOngoing) return 1
+          // Within ongoing, sort by deadline (nearest first)
+          if (aOngoing && bOngoing) {
+            if (!a.deadline && !b.deadline) return 0
+            if (!a.deadline) return 1
+            if (!b.deadline) return -1
+            return a.deadline - b.deadline
+          }
+          // Otherwise maintain default order
+          return 0
+        
+        case "deadline":
+          // Near deadline - nearest first
+          if (!a.deadline && !b.deadline) return 0
+          if (!a.deadline) return 1
+          if (!b.deadline) return -1
+          return a.deadline - b.deadline
+        
+        case "default":
+        default:
+          // Default: sortOrder first, then deadline
+          if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+            return a.sortOrder - b.sortOrder
+          }
+          if (a.sortOrder !== undefined) return -1
+          if (b.sortOrder !== undefined) return 1
+          if (!a.deadline && !b.deadline) return 0
+          if (!a.deadline) return 1
+          if (!b.deadline) return -1
+          return a.deadline - b.deadline
+      }
+    })
+
+    return filtered
+  }, [opportunities, searchQuery, selectedCategories, sortBy])
 
   // Get unique categories for filter - only from predefined tags
   const allCategories = useMemo(() => {
@@ -59,12 +118,12 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
     <div className="space-y-6 sm:space-y-8">
       {/* Search and Filters */}
       <motion.div 
-        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-4"
+        className="flex flex-col gap-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Search input - primary, takes remaining width */}
+        {/* Search input - primary, takes full width */}
         <div className="flex-1">
           <Input
             type="search"
@@ -75,27 +134,30 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
           />
         </div>
 
-        {/* Filter tags - compact pill buttons aligned to the right on larger screens */}
-        <div className="flex flex-wrap gap-2 sm:justify-end">
-          <Button
-            variant={selectedCategory === null ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(null)}
-            className="text-xs cursor-pointer rounded-md px-4 h-9 font-medium transition-all hover:scale-105"
-          >
-            All
-          </Button>
-          {allCategories.map((category) => (
-            <Button
-              key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category)}
-              className="text-xs cursor-pointer rounded-md px-4 h-9 font-medium transition-all hover:scale-105"
-            >
-              {category}
-            </Button>
-          ))}
+        {/* Filters and Sort - side by side */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* Category filter - MultiSelect */}
+          <MultiSelect
+            options={allCategories}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+            placeholder="Filter by category..."
+            className="flex-1 sm:min-w-[200px]"
+          />
+          
+          {/* Sort dropdown */}
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+            <SelectTrigger className="h-12 w-full sm:w-[200px] text-base">
+              <SelectValue placeholder="Sort by..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default (Manual Order)</SelectItem>
+              <SelectItem value="recent">Recently Added</SelectItem>
+              <SelectItem value="updated">Recently Updated</SelectItem>
+              <SelectItem value="ongoing">Ongoing</SelectItem>
+              <SelectItem value="deadline">Near Deadline</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </motion.div>
 
@@ -107,8 +169,8 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
         >
-          {filteredOpportunities.length}{" "}
-          {filteredOpportunities.length === 1 ? "opportunity" : "opportunities"}
+              {filteredAndSortedOpportunities.length}{" "}
+          {filteredAndSortedOpportunities.length === 1 ? "opportunity" : "opportunities"}
         </motion.div>
       )}
 
@@ -151,7 +213,7 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                     </div>
                   </td>
                 </tr>
-              ) : filteredOpportunities.length === 0 ? (
+              ) : filteredAndSortedOpportunities.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 sm:py-16">
                     <div className="flex flex-col items-center justify-center text-center space-y-4 max-w-md mx-auto">
@@ -170,7 +232,7 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                   </td>
                 </tr>
               ) : (
-                filteredOpportunities.map((opportunity, index) => (
+                filteredAndSortedOpportunities.map((opportunity, index) => (
                   <motion.tr
                     key={opportunity._id}
                     initial={{ opacity: 0, y: 10 }}
