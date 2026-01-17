@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -9,9 +9,11 @@ import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { MultiSelect } from "@/components/ui/multiselect"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EditOpportunityDialog } from "./edit-dialog"
 import { DeleteConfirmDialog } from "./delete-dialog"
-import { Pencil, Copy, Archive, MoreVertical, AlertCircle, ArchiveRestore, GripVertical } from "lucide-react"
+import { Pencil, Copy, Archive, MoreVertical, AlertCircle, ArchiveRestore, GripVertical, Search } from "lucide-react"
 import { getFaviconUrlWithFallback } from "@/lib/favicon"
 import {
   DndContext,
@@ -22,6 +24,7 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
+  DragOverEvent,
   DragOverlay,
 } from "@dnd-kit/core"
 import {
@@ -48,6 +51,8 @@ function SortableRow({
   onDuplicate,
   onArchive,
   onUnarchive,
+  isOver,
+  dropPosition: rowDropPosition,
 }: {
   opportunity: any
   index: number
@@ -56,6 +61,8 @@ function SortableRow({
   onDuplicate: (opp: any) => void
   onArchive: (opp: any) => void
   onUnarchive: (opp: any) => void
+  isOver?: boolean
+  dropPosition?: 'above' | 'below' | null
 }) {
   const {
     attributes,
@@ -73,15 +80,28 @@ function SortableRow({
   }
 
   return (
-    <motion.tr
-      ref={setNodeRef}
-      style={style}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: isDragging ? 0.8 : 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2, delay: index * 0.03 }}
-      className={`border-b border-border hover:bg-muted/20 transition-all duration-200 ${isDragging ? 'z-50 shadow-lg' : ''}`}
-    >
+    <>
+      {/* Drop indicator above */}
+      {isOver && rowDropPosition === 'above' && (
+        <tr>
+          <td colSpan={7} className="px-4 py-0 h-0 relative">
+            <motion.div
+              initial={{ opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 1, scaleX: 1 }}
+              className="h-0.5 bg-primary rounded-full mx-4 shadow-[0_0_8px_hsl(var(--primary))]"
+            />
+          </td>
+        </tr>
+      )}
+      <motion.tr
+        ref={setNodeRef}
+        style={style}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: isDragging ? 0.3 : (isOver ? 0.7 : 1), y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.2, delay: index * 0.03 }}
+        className={`border-b border-border hover:bg-muted/20 transition-all duration-200 ${isDragging ? 'z-50 shadow-lg' : ''} ${isOver ? 'bg-primary/5' : ''}`}
+      >
       <td className="px-4 py-3">
         <div
           {...attributes}
@@ -228,31 +248,145 @@ function SortableRow({
         </div>
       </td>
     </motion.tr>
+    {/* Drop indicator below */}
+    {isOver && rowDropPosition === 'below' && (
+      <tr>
+        <td colSpan={7} className="px-4 py-0 h-0 relative">
+          <motion.div
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            className="h-0.5 bg-primary rounded-full mx-4"
+            style={{ boxShadow: '0 0 8px rgba(var(--primary), 0.5)' }}
+          />
+        </td>
+      </tr>
+    )}
+    </>
   )
 }
+
+type SortOption = "recent" | "updated" | "ongoing" | "deadline" | "default"
 
 export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: OpportunitiesManagementProps) {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "archived">("all")
+  const [statusFilters, setStatusFilters] = useState<string[]>(["all"])
+  const [sortBy, setSortBy] = useState<SortOption>("default")
   
   // Notify parent of status filter changes
-  const handleStatusFilterChange = (filter: typeof statusFilter) => {
-    setStatusFilter(filter)
+  const handleStatusFilterChange = (filters: string[]) => {
+    // If "all" is selected with other filters, remove "all"
+    if (filters.includes("all") && filters.length > 1) {
+      filters = filters.filter(f => f !== "all")
+    }
+    // If no filters selected, default to "all"
+    if (filters.length === 0) {
+      filters = ["all"]
+    }
+    
+    setStatusFilters(filters)
+    
+    // Notify parent for backward compatibility
     if (onStatusFilterChange) {
-      onStatusFilterChange(filter)
+      if (filters.includes("all")) {
+        onStatusFilterChange("all")
+      } else if (filters.length === 1) {
+        onStatusFilterChange(filters[0] as any)
+      } else {
+        onStatusFilterChange("all")
+      }
     }
   }
   const [editingOpportunity, setEditingOpportunity] = useState<any>(null)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null)
 
-  const opportunities = useQuery(api.opportunities.list, {
-    status: statusFilter,
+  // Determine query parameters - use "all" if multiple statuses or "all" is selected
+  const queryStatus = statusFilters.includes("all") || statusFilters.length > 1 
+    ? "all" 
+    : (statusFilters[0] as "active" | "inactive" | "archived" | "all")
+  
+  const allOpportunities = useQuery(api.opportunities.list, {
+    status: queryStatus,
     search: searchQuery,
-    includeArchived: statusFilter === "archived",
+    includeArchived: statusFilters.includes("archived") || statusFilters.includes("all"),
   })
+
+  // Client-side filtering and sorting
+  const opportunities = useMemo(() => {
+    if (!allOpportunities) return undefined
+
+    let filtered = [...allOpportunities]
+
+    // Filter by status (client-side for multi-select)
+    if (!statusFilters.includes("all") && statusFilters.length > 0) {
+      filtered = filtered.filter(opp => {
+        const isArchived = !!opp.archivedAt
+        
+        // Check if matches any of the selected statuses
+        if (statusFilters.includes("archived") && isArchived) return true
+        if (statusFilters.includes("active") && opp.status === "active" && !isArchived) return true
+        if (statusFilters.includes("inactive") && opp.status === "inactive" && !isArchived) return true
+        
+        return false
+      })
+    }
+    // If "all" is selected, don't filter (show all based on query)
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "recent":
+          // Recently added - newest first
+          return b.createdAt - a.createdAt
+        
+        case "updated":
+          // Recently updated - most recent first
+          return b.updatedAt - a.updatedAt
+        
+        case "ongoing":
+          // Ongoing opportunities (active with no deadline or deadline in future)
+          const aOngoing = a.status === "active" && (!a.deadline || a.deadline > Date.now())
+          const bOngoing = b.status === "active" && (!b.deadline || b.deadline > Date.now())
+          if (aOngoing && !bOngoing) return -1
+          if (!aOngoing && bOngoing) return 1
+          // Within ongoing, sort by deadline (nearest first)
+          if (aOngoing && bOngoing) {
+            if (!a.deadline && !b.deadline) return 0
+            if (!a.deadline) return 1
+            if (!b.deadline) return -1
+            return a.deadline - b.deadline
+          }
+          // Otherwise maintain default order
+          return 0
+        
+        case "deadline":
+          // Near deadline - nearest first
+          if (!a.deadline && !b.deadline) return 0
+          if (!a.deadline) return 1
+          if (!b.deadline) return -1
+          return a.deadline - b.deadline
+        
+        case "default":
+        default:
+          // Default: sortOrder first, then deadline
+          if (a.sortOrder !== undefined && b.sortOrder !== undefined) {
+            return a.sortOrder - b.sortOrder
+          }
+          if (a.sortOrder !== undefined) return -1
+          if (b.sortOrder !== undefined) return 1
+          if (!a.deadline && !b.deadline) return 0
+          if (!a.deadline) return 1
+          if (!b.deadline) return -1
+          return a.deadline - b.deadline
+      }
+    })
+
+    return filtered
+  }, [allOpportunities, statusFilters, sortBy])
 
   const duplicateMutation = useMutation(api.opportunities.duplicate)
   const archiveMutation = useMutation(api.opportunities.archive)
@@ -327,11 +461,41 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string)
+    setOverId(null)
+    setDropPosition(null)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event
+    
+    if (!over || active.id === over.id || !opportunities) {
+      setOverId(null)
+      setDropPosition(null)
+      return
+    }
+
+    const activeIndex = opportunities.findIndex((opp) => opp._id === active.id)
+    const overIndex = opportunities.findIndex((opp) => opp._id === over.id)
+
+    if (activeIndex === -1 || overIndex === -1) {
+      setOverId(null)
+      setDropPosition(null)
+      return
+    }
+
+    // Determine drop position based on relative positions
+    // If dragging down, show indicator below; if dragging up, show above
+    const direction = activeIndex < overIndex ? 'below' : 'above'
+    
+    setOverId(over.id as string)
+    setDropPosition(direction)
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
+    setOverId(null)
+    setDropPosition(null)
 
     if (!over || active.id === over.id || !opportunities || !user) return
 
@@ -396,36 +560,40 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
 
       {/* Search and Filters */}
       <div className="space-y-4">
-        <div className="relative">
-          <Input
-            type="search"
-            placeholder="Search by title, provider, description..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 pl-4"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {["all", "active", "inactive", "archived"].map((status, index) => (
-            <motion.div
-              key={status}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05, duration: 0.2 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Button
-                variant={statusFilter === status ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleStatusFilterChange(status as typeof statusFilter)}
-                className="text-xs capitalize cursor-pointer"
-              >
-                {status}
-              </Button>
-            </motion.div>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              type="search"
+              placeholder="Search by title, provider, description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 pl-10"
+            />
+          </div>
+          
+          <div className="flex gap-3">
+            <MultiSelect
+              options={["all", "active", "inactive", "archived"]}
+              selected={statusFilters}
+              onChange={handleStatusFilterChange}
+              placeholder="Filter by status..."
+              className="min-w-[180px]"
+            />
+            
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+              <SelectTrigger className="h-10 min-w-[200px]">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default (Manual Order)</SelectItem>
+                <SelectItem value="recent">Recently Added</SelectItem>
+                <SelectItem value="updated">Recently Updated</SelectItem>
+                <SelectItem value="ongoing">Ongoing</SelectItem>
+                <SelectItem value="deadline">Near Deadline</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -441,6 +609,7 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
             sensors={sensors} 
             collisionDetection={closestCenter} 
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <table className="w-full text-sm">
@@ -475,18 +644,37 @@ export function OpportunitiesManagement({ onRefresh, onStatusFilterChange }: Opp
                       </td>
                     </tr>
                   ) : (
-                    opportunities.map((opportunity, index) => (
-                      <SortableRow
-                        key={opportunity._id}
-                        opportunity={opportunity}
-                        index={index}
-                        onEdit={setEditingOpportunity}
-                        onDelete={setDeleteTarget}
-                        onDuplicate={handleDuplicate}
-                        onArchive={handleArchive}
-                        onUnarchive={handleUnarchive}
-                      />
-                    ))
+                    <>
+                      {opportunities.map((opportunity, index) => (
+                        <SortableRow
+                          key={opportunity._id}
+                          opportunity={opportunity}
+                          index={index}
+                          onEdit={setEditingOpportunity}
+                          onDelete={setDeleteTarget}
+                          onDuplicate={handleDuplicate}
+                          onArchive={handleArchive}
+                          onUnarchive={handleUnarchive}
+                          isOver={overId === opportunity._id}
+                          dropPosition={overId === opportunity._id ? dropPosition : null}
+                        />
+                      ))}
+                      {/* Drop indicator at the bottom when dragging over last item */}
+                      {activeId && overId && opportunities.length > 0 && 
+                       overId === opportunities[opportunities.length - 1]._id && 
+                       dropPosition === 'below' && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-0 h-0 relative">
+                            <motion.div
+                              initial={{ opacity: 0, scaleX: 0 }}
+                              animate={{ opacity: 1, scaleX: 1 }}
+                              className="h-0.5 bg-primary rounded-full mx-4"
+                              style={{ boxShadow: '0 0 8px rgba(var(--primary), 0.5)' }}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )}
                 </SortableContext>
               </tbody>
