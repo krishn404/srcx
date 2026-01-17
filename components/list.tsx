@@ -333,7 +333,7 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
                 </p>
               </div>
             </div>
-          ) : filteredOpportunities.length === 0 ? (
+          ) : filteredAndSortedOpportunities.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-16 space-y-4">
               <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border border-border">
                 <Search className="w-10 h-10 text-muted-foreground" />
@@ -348,7 +348,7 @@ export function OpportunitiesTable({ onSelectOpportunity }: OpportunitiesTablePr
               </div>
             </div>
           ) : (
-            filteredOpportunities.map((opportunity, index) => (
+            filteredAndSortedOpportunities.map((opportunity, index) => (
               <motion.div
                 key={opportunity._id}
                 initial={{ opacity: 0, y: 10 }}
